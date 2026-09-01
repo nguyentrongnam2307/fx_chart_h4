@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forex Matrix H1</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #0d0f14; overflow: hidden; }
+
+  .topbar {
+    height: 36px;
+    background: #13161d;
+    border-bottom: 1px solid #2a2f3e;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .topbar-title { font-size: 11px; font-weight: 700; color: #f5c842; letter-spacing: 0.08em; font-family: 'IBM Plex Mono', monospace; }
+  .topbar-tf { font-size: 10px; color: #8892a4; letter-spacing: 0.05em; font-family: 'IBM Plex Mono', monospace; }
+  .tf-badge { background: rgba(245,200,66,0.12); border: 1px solid rgba(245,200,66,0.3); color: #f5c842; border-radius: 4px; padding: 1px 8px; font-size: 10px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .legend { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .leg-item { display: flex; align-items: center; gap: 4px; font-size: 9px; color: #8892a4; font-family: 'IBM Plex Mono', monospace; }
+  .leg-line { width: 18px; height: 2px; border-radius: 1px; }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 2px;
+    background: #2a2f3e;
+    width: 100%;
+    height: calc(100vh - 36px);
+  }
+  .chart-cell { position: relative; background: #ffffff; overflow: hidden; min-width: 0; min-height: 0; }
+  .chart-cell-label {
+    position: absolute; top: 5px; left: 6px; z-index: 10;
+    background: rgba(255,255,255,0.92); border: 1px solid #bbb;
+    border-radius: 4px; padding: 1px 6px;
+    font-size: 9px; font-weight: 700; color: #111;
+    pointer-events: none; letter-spacing: 0.06em;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .tv-container { width: 100%; height: 100%; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="chart-grid" id="chartGrid"></div>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+const PAIRS = [
+  { sym: 'OANDA:EURCAD',  label: 'EUR/CAD' },
+  { sym: 'OANDA:USDJPY',  label: 'USD/JPY' },
+  { sym: 'OANDA:USDCHF',  label: 'USD/CHF' },
+  { sym: 'OANDA:USDCAD',  label: 'USD/CAD' },
+  { sym: 'OANDA:GBPUSD',  label: 'GBP/USD' },
+  { sym: 'OANDA:EURNZD',  label: 'EUR/NZD' },
+  { sym: 'OANDA:EURAUD',  label: 'EUR/AUD' },
+  { sym: 'OANDA:GBPCAD',  label: 'GBP/CAD' },
+  { sym: 'OANDA:AUDUSD',  label: 'AUD/USD' },
+  { sym: 'OANDA:AUDNZD',  label: 'AUD/NZD' },
+  { sym: 'OANDA:AUDCHF',  label: 'AUD/CHF' },
+  { sym: 'OANDA:NZDCAD',  label: 'NZD/CAD' },
+];
+
+const OVERRIDES = {
+  'paneProperties.background': '#ffffff',
+  'paneProperties.backgroundType': 'solid',
+  'scalesProperties.textColor': '#222222',
+  'scalesProperties.lineColor': '#cccccc',
+  'paneProperties.vertGridProperties.color': '#eeeeee',
+  'paneProperties.horzGridProperties.color': '#eeeeee',
+  'mainSeriesProperties.priceLineColor': '#000000',
+  'mainSeriesProperties.priceLineWidth': 1,
+  'mainSeriesProperties.candleStyle.upColor': '#ffffff',
+  'mainSeriesProperties.candleStyle.downColor': '#111111',
+  'mainSeriesProperties.candleStyle.borderUpColor': '#111111',
+  'mainSeriesProperties.candleStyle.borderDownColor': '#111111',
+  'mainSeriesProperties.candleStyle.wickUpColor': '#111111',
+  'mainSeriesProperties.candleStyle.wickDownColor': '#111111',
+  'mainSeriesProperties.candleStyle.drawBorder': true,
+  'paneProperties.legendProperties.showLegend': false,
+  'paneProperties.legendProperties.showStudyTitles': false,
+  'paneProperties.legendProperties.showStudyValues': false,
+  'paneProperties.legendProperties.showSeriesTitle': false,
+  'paneProperties.legendProperties.showBarChange': false,
+  'paneProperties.legendProperties.showVolume': false,
+};
+
+const STUDIES = [
+  // EMA50 cloud (high/low) — xanh dương
+  { id: 'MAExp@tv-basicstudies', inputs: { length: 50, source: 'high'  }, override: { 'Plot.color': '#5b9cf6', 'Plot.linewidth': 1 } },
+  { id: 'MAExp@tv-basicstudies', inputs: { length: 50, source: 'low'   }, override: { 'Plot.color': '#5b9cf6', 'Plot.linewidth': 1 } },
+  // EMA50 close — đỏ
+  { id: 'MAExp@tv-basicstudies', inputs: { length: 50, source: 'close' }, override: { 'Plot.color': '#e53935', 'Plot.linewidth': 3 } },
+  // EMA13 close — đen
+  { id: 'MAExp@tv-basicstudies', inputs: { length: 13, source: 'close' }, override: { 'Plot.color': '#111111', 'Plot.linewidth': 3 } },
+];
+
+const grid = document.getElementById('chartGrid');
+
+PAIRS.forEach((pair, i) => {
+  const cell = document.createElement('div');
+  cell.className = 'chart-cell';
+
+  const labelEl = document.createElement('div');
+  labelEl.className = 'chart-cell-label';
+  labelEl.textContent = pair.label;
+  cell.appendChild(labelEl);
+
+  const containerId = 'tv_' + i;
+  const tvDiv = document.createElement('div');
+  tvDiv.id = containerId;
+  tvDiv.className = 'tv-container';
+  cell.appendChild(tvDiv);
+
+  grid.appendChild(cell);
+
+  new TradingView.widget({
+    autosize: true,
+    symbol: pair.sym,
+    interval: '240',
+    timezone: 'Asia/Ho_Chi_Minh',
+    theme: 'light',
+    style: '1',
+    locale: 'vi',
+    toolbar_bg: '#ffffff',
+    enable_publishing: false,
+    hide_side_toolbar: true,
+    hide_top_toolbar: false,
+    allow_symbol_change: false,
+    container_id: containerId,
+    studies: STUDIES,
+    overrides: OVERRIDES,
+    studies_overrides: {
+      'volume.volume.color.0': '#cccccc',
+      'volume.volume.color.1': '#888888',
+    },
+    disabled_features: [
+      'header_symbol_search','header_compare','header_undo_redo',
+      'header_screenshot','header_saveload','left_toolbar',
+      'timeframes_toolbar','go_to_date','display_market_status',
+      'header_indicators','header_settings','border_around_the_chart',
+      'show_logo_on_all_charts','volume_force_overlay',
+      'create_volume_indicator_by_default','studies_access',
+      'source_selection_markers',
+    ],
+    enabled_features: [
+      'hide_left_toolbar_by_default',
+      'countdown_to_bar_close_visible',
+      'no_min_chart_width',
+    ],
+  });
+});
+</script>
+</body>
+</html>
