@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -44,7 +43,8 @@
     pointer-events: none; letter-spacing: 0.06em;
     font-family: 'IBM Plex Mono', monospace;
   }
-  .tv-container { width: 100%; height: 100%; }
+  .tv-container { width: 100%; height: 100%; will-change: transform; }
+  .chart-cell { contain: strict; }
 </style>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600&display=swap" rel="stylesheet">
 </head>
@@ -122,7 +122,8 @@ PAIRS.forEach((pair, i) => {
 
   grid.appendChild(cell);
 
-  new TradingView.widget({
+  // Stagger: mỗi chart load cách nhau 300ms để tránh spike RAM/CPU cùng lúc
+  setTimeout(() => { new TradingView.widget({
     autosize: true,
     symbol: pair.sym,
     interval: '240',
@@ -150,14 +151,26 @@ PAIRS.forEach((pair, i) => {
       'show_logo_on_all_charts','volume_force_overlay',
       'create_volume_indicator_by_default','studies_access',
       'source_selection_markers',
+      'header_widget',
+      'symbol_info',
+      'chart_crosshair_menu',
+      'context_menus',
+      'legend_context_menu',
+      'scales_context_menu',
+      'pane_context_menu',
+      'main_series_scale_menu',
+      'remove_library_container_border',
+      'chart_property_page_trading',
+      'popup_hints',
       'study_last_value_widget',
     ],
     enabled_features: [
       'hide_left_toolbar_by_default',
-      'countdown_to_bar_close_visible',
       'no_min_chart_width',
+	  'countdown_to_bar_close_visible',
+      'iframe_loading_compatibility_mode',
     ],
-  });
+  }); }, i * 300); // stagger 300ms mỗi chart
 });
 </script>
 </body>
